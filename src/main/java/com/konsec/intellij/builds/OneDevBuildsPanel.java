@@ -19,6 +19,7 @@ import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -46,7 +47,7 @@ public class OneDevBuildsPanel extends SimpleToolWindowPanel {
         super(true, true);
         this.project = project;
 
-        tableModel = new DefaultTableModel(new String[]{"", "Job", "Project", "Branch", "Commit", "Date"}, 0) {
+        tableModel = new DefaultTableModel(new String[]{"", "Job", "Project", "Branch", "Commit", "Date", "Log"}, 0) {
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -61,18 +62,32 @@ public class OneDevBuildsPanel extends SimpleToolWindowPanel {
         table = new JBTable(tableModel);
         table.getColumnModel().getColumn(0).setMaxWidth(24);
         table.getColumnModel().getColumn(0).setMinWidth(24);
+        table.getColumnModel().getColumn(6).setMaxWidth(52);
+        table.getColumnModel().getColumn(6).setMinWidth(52);
+        table.getColumnModel().getColumn(6).setCellRenderer(new LogButtonRenderer());
         table.setShowGrid(false);
         table.setRowHeight(22);
 
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                if (e.getClickCount() == 2) {
-                    int row = table.getSelectedRow();
-                    if (row >= 0 && row < currentBuilds.size()) {
+                int row = table.rowAtPoint(e.getPoint());
+                int col = table.columnAtPoint(e.getPoint());
+                if (row >= 0 && row < currentBuilds.size()) {
+                    if (e.getClickCount() == 2 || col == 6) {
                         openBuildLog(currentBuilds.get(row));
                     }
                 }
+            }
+        });
+
+        table.addMouseMotionListener(new java.awt.event.MouseMotionAdapter() {
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                int col = table.columnAtPoint(e.getPoint());
+                table.setCursor(col == 6
+                        ? Cursor.getPredefinedCursor(Cursor.HAND_CURSOR)
+                        : Cursor.getDefaultCursor());
             }
         });
 
@@ -219,7 +234,8 @@ public class OneDevBuildsPanel extends SimpleToolWindowPanel {
                     projectName,
                     build.refName,
                     shortCommit,
-                    build.submitDate != null ? formatRelativeDate(build.submitDate) : ""
+                    build.submitDate != null ? formatRelativeDate(build.submitDate) : "",
+                    "Log"
             });
         }
     }
@@ -289,6 +305,20 @@ public class OneDevBuildsPanel extends SimpleToolWindowPanel {
         if (future != null) {
             future.cancel(false);
             autoRefreshFuture = null;
+        }
+    }
+
+    private static class LogButtonRenderer extends JButton implements TableCellRenderer {
+        LogButtonRenderer() {
+            setText("Log");
+            setMargin(new Insets(1, 4, 1, 4));
+            setFocusPainted(false);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            return this;
         }
     }
 
